@@ -1,8 +1,30 @@
-# Introduction
+# Crypto Arbitrage
 
-This is a skeleton application using the Hyperf framework. This application is meant to be used as a starting place for those looking to get their feet wet with Hyperf Framework.
+Serviço de arbitragem de criptomoedas em Hyperf, atualmente em fase inicial. A primeira integração consome, via WebSocket, o melhor bid/ask dos pares `BTCUSDT`, `ETHUSDT` e `SOLUSDT` na Binance Spot.
 
-# Requirements
+## Contexto para IA
+
+O arquivo `AGENTS.md` é a entrada obrigatória para agentes de código. As decisões duráveis do projeto ficam em `.ai/`:
+
+- contexto e vocabulário do produto;
+- limites arquiteturais;
+- convenções de implementação.
+
+## Binance market data
+
+Os símbolos monitorados ficam em `config/autoload/exchanges.php`:
+
+```php
+'symbols' => [
+    'BTCUSDT',
+    'ETHUSDT',
+    'SOLUSDT',
+],
+```
+
+Ao iniciar o Hyperf, o processo `binance-market-data` abre um stream combinado `bookTicker`, registra atualizações estruturadas de bid/ask e reconecta automaticamente após uma desconexão.
+
+## Requirements
 
 Hyperf has some requirements for the system environment, it can only run under Linux and Mac environment, but due to the development of Docker virtualization technology, Docker for Windows can also be used as the running environment under Windows.
 
@@ -21,7 +43,7 @@ When you don't want to use Docker as the basis for your running environment, you
  - Redis PHP extension （If you need to use the Redis Client）
  - Protobuf PHP extension （If you need to use the gRPC Server or Client）
 
-# Installation using Composer
+## Installation using Composer
 
 The easiest way to create a new Hyperf project is to use [Composer](https://getcomposer.org/). If you don't have it already installed, then please install as per [the documentation](https://getcomposer.org/download/).
 
@@ -37,7 +59,7 @@ If your development environment is based on Docker you can use the official Comp
 docker run --rm -it -v $(pwd):/app composer create-project --ignore-platform-reqs hyperf/hyperf-skeleton path/to/install
 ```
 
-# Getting started
+## Getting started
 
 Once installed, you can run the server immediately using the command below.
 
@@ -55,7 +77,7 @@ docker-compose up
 
 This will start the cli-server on port `9501`, and bind it to all network interfaces. You can then visit the site at `http://localhost:9501/` which will bring up Hyperf default home page.
 
-## Hints
+### Hints
 
 - A nice tip is to rename `hyperf-skeleton` of files like `composer.json` and `docker-compose.yml` to your actual project name.
 - Take a look at `config/routes.php` and `app/Controller/IndexController.php` to see an example of a HTTP entrypoint.

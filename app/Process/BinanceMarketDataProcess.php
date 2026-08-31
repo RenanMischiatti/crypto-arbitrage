@@ -18,12 +18,7 @@ final class BinanceMarketDataProcess extends AbstractProcess
 
     public function handle(): void
     {
-        $logger = $this->container->get(
-            StdoutLoggerInterface::class
-        );
-
-        $logger->info('Binance market data process started');
-
+        $this->container->get(StdoutLoggerInterface::class)->info('Binance market data process started');
         $this->container->get(BinanceWebSocketService::class)->listen();
     }
 }

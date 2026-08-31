@@ -18,4 +18,19 @@ return [
             'SOLUSDT',
         ],
     ],
+    'bybit' => [
+        'websocket' => [
+            'host' => (string) env('BYBIT_WEBSOCKET_HOST', 'stream.bybit.com'),
+            'port' => (int) env('BYBIT_WEBSOCKET_PORT', 443),
+            'path' => '/v5/public/spot',
+            'ssl' => true,
+            'ping_interval_seconds' => 20.0,
+            'reconnect_delay_seconds' => 10.0,
+        ],
+        'symbols' => [
+            'BTCUSDT',
+            'ETHUSDT',
+            'SOLUSDT',
+        ],
+    ],
 ];

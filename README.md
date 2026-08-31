@@ -1,6 +1,6 @@
 # Crypto Arbitrage
 
-Serviço de arbitragem de criptomoedas em Hyperf, atualmente em fase inicial. A primeira integração consome, via WebSocket, o melhor bid/ask dos pares `BTCUSDT`, `ETHUSDT` e `SOLUSDT` na Binance Spot.
+Serviço de arbitragem de criptomoedas em Hyperf, atualmente em fase inicial. As integrações consomem, via WebSocket, o melhor bid/ask dos pares `BTCUSDT`, `ETHUSDT` e `SOLUSDT` na Binance Spot e na Bybit Spot.
 
 ## Contexto para IA
 
@@ -23,6 +23,8 @@ Os símbolos monitorados ficam em `config/autoload/exchanges.php`:
 ```
 
 Ao iniciar o Hyperf, o processo `binance-market-data` abre um stream combinado `bookTicker`, registra atualizações estruturadas de bid/ask e reconecta automaticamente após uma desconexão.
+
+O processo `bybit-market-data` assina os tópicos `orderbook.1` dos mesmos símbolos, mantém a conexão com heartbeat e converte cada snapshot para o mesmo DTO `Quote` usado pela Binance.
 
 ## Requirements
 

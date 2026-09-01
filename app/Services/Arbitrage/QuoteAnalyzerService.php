@@ -24,8 +24,6 @@ final class QuoteAnalyzerService
 
     private readonly string $minSpreadPercent;
 
-    private readonly string $minLoggedSpreadPercent;
-
     private readonly int $sleepAfterOpportunitySeconds;
 
     public function __construct(
@@ -36,7 +34,6 @@ final class QuoteAnalyzerService
         $this->exchanges = (array) array_values($config->get('arbitrage.exchanges'));
         $this->maxQuoteAgeMs = (int) $config->get('arbitrage.max_quote_age_ms');
         $this->minSpreadPercent = (string) $config->get('arbitrage.min_spread_percent');
-        $this->minLoggedSpreadPercent = (string) $config->get('arbitrage.min_logged_spread_percent');
         $this->sleepAfterOpportunitySeconds = (int) $config->get('arbitrage.sleep_after_opportunity_seconds');
     }
 
@@ -159,15 +156,6 @@ final class QuoteAnalyzerService
 
         // Only spreads above the configured threshold are considered opportunities.
         if (! $this->spreadExceedsMinimum($spreadPercent)) {
-            $this->logInsufficientSpreadWhenRelevant(
-                $symbol,
-                $buyExchange,
-                $buyPrice,
-                $sellExchange,
-                $sellPrice,
-                $spreadPercent
-            );
-
             return;
         }
 
@@ -219,45 +207,6 @@ final class QuoteAnalyzerService
     private function spreadExceedsMinimum(string $spreadPercent): bool
     {
         return bccomp($spreadPercent, $this->minSpreadPercent, self::PERCENT_SCALE) > 0;
-    }
-
-    private function logInsufficientSpreadWhenRelevant(
-        string $symbol,
-        string $buyExchange,
-        string $buyPrice,
-        string $sellExchange,
-        string $sellPrice,
-        string $spreadPercent,
-    ): void {
-        // Near opportunities are useful for monitoring. Smaller spreads are ignored
-        // to avoid filling the logs with market variations that are not actionable.
-        $reachesLoggingThreshold = bccomp(
-            $spreadPercent,
-            $this->minLoggedSpreadPercent,
-            self::PERCENT_SCALE
-        ) >= 0;
-        $isBelowOpportunityThreshold = bccomp(
-            $spreadPercent,
-            $this->minSpreadPercent,
-            self::PERCENT_SCALE
-        ) < 0;
-
-        // if (! $reachesLoggingThreshold || ! $isBelowOpportunityThreshold) {
-        //     return;
-        // }
-
-        $this->logger->info(
-            'Insufficient spread {symbol}: buy {buy_exchange} at {buy_price}, sell {sell_exchange} at {sell_price}, gross spread {spread}% (required above {minimum}%)',
-            [
-                'symbol' => $symbol,
-                'buy_exchange' => $buyExchange,
-                'buy_price' => $buyPrice,
-                'sell_exchange' => $sellExchange,
-                'sell_price' => $sellPrice,
-                'spread' => $spreadPercent,
-                'minimum' => $this->minSpreadPercent,
-            ]
-        );
     }
 
     private function logOpportunity(

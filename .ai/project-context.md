@@ -9,8 +9,8 @@ Construir um serviço de arbitragem de criptomoedas em Hyperf. O sistema observa
 - Framework: Hyperf 3.2
 - Linguagem: PHP 8.2+
 - Runtime concorrente: Swoole
-- Exchanges integradas: Binance Spot e Bybit Spot
-- Mercado inicial: pares BTC/USDT, ETH/USDT e SOL/USDT
+- Exchanges integradas: Binance Spot, Bybit Spot e OKX Spot
+- Mercado inicial: pares BTC/USDT, ETH/USDT, SOL/USDT, DOGE/USDT e SUI/USDT
 - Feed inicial: melhor preço e quantidade de compra/venda (`bookTicker`)
 
 ## Vocabulário

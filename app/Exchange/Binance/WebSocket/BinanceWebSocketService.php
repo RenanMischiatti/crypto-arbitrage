@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Exchange\Binance\WebSocket;
 
+use App\Infrastructure\Redis\QuoteCache;
 use App\Exchange\Binance\BinanceMessageHandler;
 use App\Exchange\Binance\WebSocket\Stream\BookTickerStream;
 use Hyperf\Contract\ConfigInterface;
@@ -30,12 +31,13 @@ final class BinanceWebSocketService
         private readonly StdoutLoggerInterface $logger,
         private readonly BinanceMessageHandler $messageHandler,
         private readonly BookTickerStream $stream,
+        private readonly QuoteCache $quoteCache,
         ConfigInterface $config,
     ) {
         $this->host                  = (string) $config->get('exchanges.binance.websocket.host');
         $this->port                  = (int) $config->get('exchanges.binance.websocket.port');
         $this->ssl                   = (bool) $config->get('exchanges.binance.websocket.ssl');
-        $this->symbols               = (array) array_values($config->get('exchanges.binance.symbols', []));
+        $this->symbols               = (array) array_values($config->get('exchanges.binance.symbols'));
         $this->reconnectDelaySeconds = (float) $config->get('exchanges.binance.websocket.reconnect_delay_seconds');
     }
 
@@ -109,10 +111,7 @@ final class BinanceWebSocketService
 
         if ($frame->opcode === SWOOLE_WEBSOCKET_OPCODE_TEXT && is_string($frame->data)) {
             $quote = $this->messageHandler->handle($frame->data);
-
-            $this->logger->info('Binance quote: {quote}', [
-                'quote' => json_encode($quote->toArray(), JSON_THROW_ON_ERROR),
-            ]);
+            $this->quoteCache->save('binance', $quote);
         }
     }
 }

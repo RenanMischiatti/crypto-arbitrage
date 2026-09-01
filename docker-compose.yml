@@ -14,6 +14,20 @@ services:
     environment:
       - APP_ENV=dev
       - SCAN_CACHEABLE=false
+      - REDIS_HOST=redis
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  redis:
+    image: redis:7.4-alpine
+    ports:
+      - 6379:6379
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 1s
+      retries: 10
 
 networks:
   default:

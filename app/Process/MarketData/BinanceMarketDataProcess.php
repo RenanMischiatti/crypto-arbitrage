@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Process;
+namespace App\Process\MarketData;
 
 use App\Exchange\Binance\WebSocket\BinanceWebSocketService;
 use Hyperf\Contract\StdoutLoggerInterface;

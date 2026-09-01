@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Exchange\Bybit\WebSocket;
 
+use App\Infrastructure\Redis\QuoteCache;
 use App\Exchange\Bybit\BybitMessageHandler;
 use App\Exchange\Bybit\WebSocket\Stream\OrderBookStream;
 use Hyperf\Contract\ConfigInterface;
@@ -34,6 +35,7 @@ final class BybitWebSocketService
         private readonly StdoutLoggerInterface $logger,
         private readonly BybitMessageHandler $messageHandler,
         private readonly OrderBookStream $stream,
+        private readonly QuoteCache $quoteCache,
         ConfigInterface $config,
     ) {
         $this->host = (string) $config->get('exchanges.bybit.websocket.host');
@@ -42,7 +44,7 @@ final class BybitWebSocketService
         $this->ssl = (bool) $config->get('exchanges.bybit.websocket.ssl');
         $this->pingIntervalSeconds = (float) $config->get('exchanges.bybit.websocket.ping_interval_seconds');
         $this->reconnectDelaySeconds = (float) $config->get('exchanges.bybit.websocket.reconnect_delay_seconds');
-        $this->symbols = (array) array_values($config->get('exchanges.bybit.symbols', []));
+        $this->symbols = (array) array_values($config->get('exchanges.bybit.symbols'));
     }
 
     public function listen(): void
@@ -133,9 +135,7 @@ final class BybitWebSocketService
         $quote = $this->messageHandler->handle($frame->data);
 
         if ($quote !== null) {
-            $this->logger->info('Bybit quote: {quote}', [
-                'quote' => json_encode($quote->toArray(), JSON_THROW_ON_ERROR),
-            ]);
+            $this->quoteCache->save('bybit', $quote);
         }
     }
 }

@@ -26,6 +26,12 @@ Ao iniciar o Hyperf, o processo `binance-market-data` abre um stream combinado `
 
 O processo `bybit-market-data` assina os tópicos `orderbook.1` dos mesmos símbolos, mantém a conexão com heartbeat e converte cada snapshot para o mesmo DTO `Quote` usado pela Binance.
 
+## Real-time analysis
+
+Cada cotação sobrescreve uma chave Redis no formato `quote:latest:<exchange>:<symbol>` e publica uma notificação em `quote:updated:<symbol>`. Três processos independentes analisam `BTCUSDT`, `ETHUSDT` e `SOLUSDT`, carregando as cotações atuais das exchanges com um único `MGET`.
+
+O ambiente Docker inicia o Redis automaticamente. Os analisadores registram apenas spreads brutos maiores que `0.40%` e aguardam 10 segundos após uma oportunidade. Taxas, slippage e execução ainda precisam ser considerados antes de uma oportunidade ser tratada como negociável.
+
 ## Requirements
 
 Hyperf has some requirements for the system environment, it can only run under Linux and Mac environment, but due to the development of Docker virtualization technology, Docker for Windows can also be used as the running environment under Windows.

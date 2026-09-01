@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Process;
+namespace App\Process\MarketData;
 
 use App\Exchange\Bybit\WebSocket\BybitWebSocketService;
 use Hyperf\Contract\StdoutLoggerInterface;

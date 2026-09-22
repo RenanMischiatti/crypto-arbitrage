@@ -1,93 +1,187 @@
 # Crypto Arbitrage
 
-Serviço de arbitragem de criptomoedas em Hyperf, atualmente em fase inicial. As integrações consomem, via WebSocket, o melhor bid/ask dos pares `BTCUSDT`, `ETHUSDT` e `SOLUSDT` na Binance Spot e na Bybit Spot.
+Projeto pessoal e educacional para acompanhar preços de criptomoedas em diferentes corretoras e identificar possíveis oportunidades de arbitragem em tempo real.
 
-## Contexto para IA
+> [!IMPORTANT]
+> Este repositório tem finalidade exclusivamente informativa e de estudo. Ele não constitui recomendação financeira, não garante rentabilidade e não executa ordens de compra ou venda. Taxas, slippage, liquidez, latência, limites operacionais e riscos de transferência podem tornar uma diferença de preço inviável na prática.
 
-O arquivo `AGENTS.md` é a entrada obrigatória para agentes de código. As decisões duráveis do projeto ficam em `.ai/`:
+## Introdução
 
-- contexto e vocabulário do produto;
-- limites arquiteturais;
-- convenções de implementação.
+Arbitragem é a estratégia de comprar um ativo onde ele está mais barato e vendê-lo onde está mais caro. No mercado de criptomoedas, uma mesma moeda pode apresentar pequenas diferenças de preço entre corretoras.
 
-## Binance market data
+Este projeto observa o melhor preço disponível para compra (`ask`) e venda (`bid`) em diferentes exchanges. Quando o maior `bid` é superior ao menor `ask`, o sistema calcula o spread bruto e registra a oportunidade caso ela ultrapasse o limite configurado.
 
-Os símbolos monitorados ficam em `config/autoload/exchanges.php`:
+Atualmente são monitoradas:
 
-```php
-'symbols' => [
-    'BTCUSDT',
-    'ETHUSDT',
-    'SOLUSDT',
-],
+- exchanges: Binance Spot, Bybit Spot e OKX Spot;
+- moedas: Bitcoin, Ethereum, Solana, Dogecoin e Sui;
+- pares: `BTCUSDT`, `ETHUSDT`, `SOLUSDT`, `DOGEUSDT` e `SUIUSDT`.
+
+## O que o projeto faz
+
+1. Abre conexões WebSocket públicas com as exchanges.
+2. Recebe o melhor `bid`, o melhor `ask` e suas respectivas quantidades.
+3. Converte as mensagens de cada corretora para um formato único de cotação.
+4. Armazena temporariamente a cotação mais recente de cada par no Redis.
+5. Compara apenas cotações recentes entre as exchanges.
+6. Calcula o spread bruto com a fórmula:
+
+```text
+spread (%) = ((preço de venda - preço de compra) / preço de compra) × 100
 ```
 
-Ao iniciar o Hyperf, o processo `binance-market-data` abre um stream combinado `bookTicker`, registra atualizações estruturadas de bid/ask e reconecta automaticamente após uma desconexão.
+7. Registra no console candidatos cujo spread seja maior que o limite configurado — `0,30%` por padrão.
 
-O processo `bybit-market-data` assina os tópicos `orderbook.1` dos mesmos símbolos, mantém a conexão com heartbeat e converte cada snapshot para o mesmo DTO `Quote` usado pela Binance.
+O fluxo principal é:
 
-## Real-time analysis
-
-Cada cotação sobrescreve uma chave Redis no formato `quote:latest:<exchange>:<symbol>` e publica uma notificação em `quote:updated:<symbol>`. Três processos independentes analisam `BTCUSDT`, `ETHUSDT` e `SOLUSDT`, carregando as cotações atuais das exchanges com um único `MGET`.
-
-O ambiente Docker inicia o Redis automaticamente. Os analisadores registram apenas spreads brutos maiores que `0.40%` e aguardam 10 segundos após uma oportunidade. Taxas, slippage e execução ainda precisam ser considerados antes de uma oportunidade ser tratada como negociável.
-
-## Requirements
-
-Hyperf has some requirements for the system environment, it can only run under Linux and Mac environment, but due to the development of Docker virtualization technology, Docker for Windows can also be used as the running environment under Windows.
-
-The various versions of Dockerfile have been prepared for you in the [hyperf/hyperf-docker](https://github.com/hyperf/hyperf-docker) project, or directly based on the already built [hyperf/hyperf](https://hub.docker.com/r/hyperf/hyperf) Image to run.
-
-When you don't want to use Docker as the basis for your running environment, you need to make sure that your operating environment meets the following requirements:  
-
- - PHP >= 8.2
- - Any of the following network engines
-   - Swoole PHP extension >= 5.0，with `swoole.use_shortname` set to `Off` in your `php.ini`
-   - Swow PHP extension >= 1.3
- - JSON PHP extension
- - Pcntl PHP extension
- - OpenSSL PHP extension （If you need to use the HTTPS）
- - PDO PHP extension （If you need to use the MySQL Client）
- - Redis PHP extension （If you need to use the Redis Client）
- - Protobuf PHP extension （If you need to use the gRPC Server or Client）
-
-## Installation using Composer
-
-The easiest way to create a new Hyperf project is to use [Composer](https://getcomposer.org/). If you don't have it already installed, then please install as per [the documentation](https://getcomposer.org/download/).
-
-To create your new Hyperf project:
-
-```bash
-composer create-project hyperf/hyperf-skeleton path/to/install
+```text
+WebSockets das exchanges
+          ↓
+Normalização das cotações
+          ↓
+       Redis
+          ↓
+Comparação por criptomoeda
+          ↓
+Oportunidade registrada no console
 ```
 
-If your development environment is based on Docker you can use the official Composer image to create a new Hyperf project:
+O sistema usa somente market data público. Não há autenticação nas exchanges, uso de chaves de API, movimentação de saldo ou envio automático de ordens.
+
+## Stack
+
+- **PHP 8.2+** — linguagem principal;
+- **Hyperf 3.2** — framework da aplicação e gerenciamento dos processos;
+- **Swoole** — runtime assíncrono e concorrente usado pelas conexões e processos de longa duração;
+- **WebSocket** — consumo de cotações em tempo real das exchanges;
+- **Redis 7.4** — cache das últimas cotações e comunicação Pub/Sub entre coletores e analisadores;
+- **BCMath** — cálculos decimais de preço e spread sem o uso de `float`;
+- **Docker e Docker Compose** — ambiente local reproduzível;
+- **PHPUnit/Hyperf Testing** — testes automatizados;
+- **PHPStan** — análise estática;
+- **PHP CS Fixer** — padronização do código.
+
+## Arquitetura
+
+O código separa as regras de negócio dos detalhes de infraestrutura:
+
+- `app/Domain`: tipos e dados normalizados do domínio;
+- `app/Exchange`: integrações WebSocket e tradução das respostas de cada exchange;
+- `app/Infrastructure`: detalhes técnicos compartilhados, como o cache Redis;
+- `app/Services`: análise e coordenação das regras de arbitragem;
+- `app/Process/MarketData`: processos que coletam as cotações;
+- `app/Process/CryptoAnalysis`: processos que analisam cada moeda;
+- `config/autoload`: exchanges, pares e parâmetros operacionais;
+- `test`: testes automatizados.
+
+## Setup com Docker (recomendado)
+
+### Pré-requisitos
+
+- Git;
+- Docker com o Docker Compose.
+
+### Instalação
+
+Clone o repositório e entre na pasta do projeto:
 
 ```bash
-docker run --rm -it -v $(pwd):/app composer create-project --ignore-platform-reqs hyperf/hyperf-skeleton path/to/install
+git clone <URL_DO_REPOSITORIO>
+cd crypto-arbitrage
 ```
 
-## Getting started
-
-Once installed, you can run the server immediately using the command below.
+Crie o arquivo local de ambiente:
 
 ```bash
-cd path/to/install
+cp .env.example .env
+```
+
+No PowerShell, use:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Construa as imagens e inicie a aplicação e o Redis:
+
+```bash
+docker compose up --build
+```
+
+Os processos de coleta e análise começam junto com o Hyperf. As conexões, atualizações e oportunidades encontradas aparecem nos logs do terminal. A aplicação HTTP fica disponível em `http://localhost:9501` e o Redis em `localhost:6379`.
+
+Para encerrar o ambiente, pressione `Ctrl+C` e execute:
+
+```bash
+docker compose down
+```
+
+## Setup sem Docker
+
+Para executar diretamente no sistema, é necessário ter:
+
+- PHP 8.2 ou superior;
+- Composer;
+- Swoole 5.0 ou superior, com `swoole.use_shortname=Off`;
+- extensões PHP exigidas pelo Hyperf, incluindo Redis e BCMath;
+- uma instância Redis acessível.
+
+Depois, instale as dependências, prepare o ambiente e inicie o serviço:
+
+```bash
+composer install
+cp .env.example .env
 php bin/hyperf.php start
 ```
 
-Or if in a Docker based environment you can use the `docker-compose.yml` provided by the template:
+Se o Redis não estiver em `localhost:6379`, ajuste `REDIS_HOST`, `REDIS_PORT`, `REDIS_AUTH` e `REDIS_DB` no arquivo `.env`.
+
+## Configuração
+
+Os símbolos e endereços WebSocket ficam em `config/autoload/exchanges.php`. Os principais parâmetros da análise ficam em `config/autoload/arbitrage.php`:
+
+- `quote_ttl_seconds`: tempo de vida de uma cotação no Redis;
+- `max_quote_age_ms`: idade máxima aceita durante a comparação;
+- `min_spread_percent`: spread bruto mínimo para registrar um candidato;
+- `sleep_after_opportunity_seconds`: intervalo antes de repetir alertas para o mesmo par.
+
+Hosts e portas das exchanges também podem ser sobrescritos por variáveis de ambiente. Valores sensíveis ou específicos de cada ambiente devem permanecer no `.env` e não devem ser versionados.
+
+## Qualidade do código
+
+Execute os testes automatizados:
 
 ```bash
-cd path/to/install
-docker-compose up
+composer test
 ```
 
-This will start the cli-server on port `9501`, and bind it to all network interfaces. You can then visit the site at `http://localhost:9501/` which will bring up Hyperf default home page.
+Execute a análise estática:
 
-### Hints
+```bash
+composer analyse
+```
 
-- A nice tip is to rename `hyperf-skeleton` of files like `composer.json` and `docker-compose.yml` to your actual project name.
-- Take a look at `config/routes.php` and `app/Controller/IndexController.php` to see an example of a HTTP entrypoint.
+Para aplicar o padrão de formatação configurado:
 
-**Remember:** you can always replace the contents of this README.md file to something that fits your project description.
+```bash
+composer cs-fix
+```
+
+Se estiver usando apenas Docker, os mesmos comandos podem ser executados no container:
+
+```bash
+docker compose exec hyperf-skeleton composer test
+docker compose exec hyperf-skeleton composer analyse
+```
+
+## Limitações atuais
+
+- O spread calculado é bruto: taxas, slippage e outros custos ainda não são descontados.
+- A quantidade realmente negociável entre os livros não é usada para dimensionar uma operação.
+- O sistema apenas identifica e registra candidatos; nenhuma ordem é executada.
+- Não há gestão de saldo, risco, transferência entre exchanges ou persistência histórica.
+- Diferenças observadas podem desaparecer antes de uma operação real ser concluída.
+
+## Licença
+
+Distribuído sob a licença MIT. Consulte o arquivo `LICENSE` para mais detalhes.
